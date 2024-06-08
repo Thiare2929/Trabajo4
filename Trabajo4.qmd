@@ -1,0 +1,287 @@
+---
+title: "Trabajo 4"
+author: "Thiare Santibañez García"
+format: html
+editor: visual
+---
+
+# 1. Identificación partidaria y el apoyo a la democracia en Chile.
+
+En el presente escrito, se presentará la preocupante disminución del apoyo al sistema democrático en Chile, evidenciada por los bajos niveles de respaldo a este sistema en toda América Latina, siendo Chile uno de los principales países que muestra bajos niveles de apoyo a este sistema @latinobarómetrocorporation2023. Por otra parte, se puede interpretar que la contante disminución del apoyo a la democracia en Chile tiene que ver con eventos específicos, uno de los más recientes, siendo el "Estallido social", que ocurrió en el año 2019, demostrando el descontento de una gran parte de la población Chilena con las alzas de diversos servicios, como se vio en los primeros motivos de protestas, como por ejemplo, el descontento con el aumento de dinero al pasaje del metro de Santiago @moralesquiroga2020. Sin embargo, es relevante comprender desde dónde y por qué surgen estos bajos niveles de apoyo a la democracia en Chile; no se puede considerar solo un evento como el estallido social para explicar este fenómeno, al contrario, sería insuficiente. Por lo tanto el presente proyecto, utilizando el caso de Chile, se presenta la siguiente hipótesis: Para el país de Chile, mientras más baja es la representación ciudadana mediante los partidos políticos, menos apoyo a la democracia existe.
+
+La menor representación de los ciudadanos por parte de los partidos políticos puede resultar en menor apego al sistema político, en este caso al sistema democrático, ya que los partidos políticos tradicionales no son capaces de solucionar la crisis de representación que experimenta la población, de este modo, en un intento de conseguir más identificación, se crean más partidos políticos no tradicionales, llamados "emergentes" y se diversifica más la ciudadanía, obteniendo practicamente el mismo resultado. "En 1990 al rededor del 73% manifestaba identificación con alguna organización partidaria, cifra que desciende al 19% en 2016, y al 16% en 2019 @avendaño2022." Estas cifras, afectan de la misma manera a partidos tradicionales y partidos emergentes.
+
+Relacionado a la crisis de identificación partidaria, es importante señalar que en Chile se vivieron momentos críticos de la Democracia como lo fue la dictadura militar de 1973, llena de violencia y violaciones a los DDHH, por lo cual, se identifica que en periodo de vuelta a la democracia, hubo una reducción de la identificación partidaria total del 70% respecto a otros periodos @moralesquiroga2020.
+
+Siguiendo con el mismo impacto que generó la dictadura en Chile, se debe precisar cómo durante este periodo, el régimen militar se esforzó para dejar enclaves constitucionales para los posteriores periodos que pudiesen venir de gobierno, a través de la constitución instaurada en dicho periodo. Por lo que la concertación que asume en este retorno a la democracia, demora quince años y tres gobiernos para empezar a teabajar en reformas constitucionales @garcíagonzález2006.
+
+# 2. Reporte descriptivo 
+
+```{r}
+## Abrir base de datos
+
+# Carga el archivo .Rdata
+
+setwd("C:/Users/thiar/OneDrive/Desktop/IPO/trabajo3oficial/procesamiento")
+
+load("Latinobarometro_2023_Esp_v1_0.RData")
+
+
+
+pacman::p_load(sjlabelled,
+               dplyr, #Manipulacion de datos
+              stargazer, #Tablas
+              sjmisc, # Tablas
+              summarytools, # Tablas
+              kableExtra, #Tablas
+              sjPlot, #Tablas y gráficos
+              corrplot, # Correlaciones
+              sessioninfo, # Información de la sesión de trabajo
+              ggplot2,
+              haven,
+              car)
+
+#### Crear proc_data con variables de interés
+
+proc_data <- Latinobarometro_2023_Esp_v1_0 %>% select(sexo, # sexo
+                                            edad, # edad
+                                            idenpa, #país
+                                            P16ST, #Iden pol. izq o derecha
+                                            P18N.F, #Funcionamiento de partidos politicos
+                                            P20STM, #Apoyar un gob militar, según...
+                                            P21ST) #Existencia de democracia con o sin partidos pol
+
+#### Filtrar para usar solo los datos de Chile
+
+proc_data <- proc_data %>% dplyr::filter(idenpa==152)
+
+#### Quitar los NA de las variables 
+
+#Quitar los NA de la variable P16ST
+proc_data$P16ST <- recode(proc_data$P16ST, "c(-2,-1,96)=NA")
+
+#Quitar los NA de la variable P20STM
+proc_data$P20STM <- recode(proc_data$P20STM, "c(-2,-1)=NA")
+
+#Quitar ñlos NA de la variable P21ST
+proc_data$P21ST <- recode(proc_data$P21ST, "c(-2,-1,97)=NA")
+
+#Quitar los NA de la variable P18N.F 
+proc_data$P18N.F <- recode(proc_data$P18N.F, "c(-5)=NA")
+
+proc_data <- proc_data %>% set_na(., na = c(-2, -1, -5, 96, 97))
+
+```
+
+```{r}
+#### Etiquetar las variables 
+
+proc_data <- proc_data %>% rename("iden_pol"=P16ST, #Identificación política
+                                  "fun_parpol"=P18N.F, #Funcionamiento de partido políticos
+                                  "apoy_gm"=P20STM, #Apoyo a un gobierno militar 
+                                  "demo_parpol"=P21ST) #Existencia de democracia 
+
+#Comprobar que se pusieron los nombres 
+names(proc_data)
+
+#### Re-etiquetar los valores de las variables 
+
+proc_data$sexo <- set_labels(proc_data$sexo,
+                                   labels=c( "Hombre"=1,
+                                             "Mujer"=2))
+                                            
+
+proc_data$iden_pol <- set_labels(proc_data$iden_pol,
+                                 labels=c( "Izquierda"=0,
+                                           "Derecha"=10))
+
+
+proc_data$fun_parpol <- set_labels(proc_data$fun_parpol,
+                                  labels=c( "Los partido políticos en Chile funcionan bien"=1,
+                                            "Los partido políticos en Chile funcionan medianamente bien"=2,
+                                            "Los partidos políticos en Chile no funcionan bien"=3,
+                                            "Los partidos políticos en Chile no funcionan nada bien"=4))
+
+
+proc_data$apoy_gm <- set_labels(proc_data$apoy_gm,
+                                 labels=c( "Apoyaría a un gobierno militar en reemplazo del gobierno democrático, si las cosas se ponen muy difíciles"=1,
+                                           "En ninguna circunstancia apoyaría a un gobierno milita"=2))
+
+proc_data$demo_parpol <- set_labels(proc_data$demo_parpol,
+                                     labels=c( "No"=1,
+                                               "Si"=2))
+
+#Agrupar edades
+proc_data <- proc_data %>% 
+  mutate(edad_groups = case_when(edad >=18 & edad<=25 ~ "Adulto Joven",
+                                 edad >=26 & edad<=59 ~ "Adulto",
+                                 edad >=60 ~ "Adulto mayor"))
+
+#### Asegurarse de quitar los NA
+
+##Primero guardar la base original
+proc_data_madre <-proc_data
+dim(proc_data)
+#Contar los casos perdidos 
+sum(is.na(proc_data))
+#Borrar los casos perdidos 
+proc_data <-na.omit(proc_data)
+#Asegurarse
+dim(proc_data)
+#Recuperar las etiquetas anteriores 
+proc_data <-sjlabelled::copy_labels(proc_data,proc_data_madre)
+
+## Visualización de datos 
+
+#### Paso previo para generar tablas 
+
+proc_data <-as.data.frame(proc_data)
+stargazer(proc_data, type="text")
+
+#### Tabla descriptiva 
+
+sjmisc::descr(proc_data,
+      show = c("label","range", "mean", "sd", "NA.prc", "n"))%>%
+      kable(.,"markdown")
+
+```
+
+```{r}
+#### Tabla 1
+
+sjt.xtab(proc_data$apoy_gm, proc_data$fun_parpol, encoding = "UTF-8")
+#Agregar porcentaje 
+sjt.xtab(proc_data$apoy_gm, proc_data$fun_parpol,
+         show.col.prc=TRUE,
+         show.summary=FALSE,
+         encoding = "UTF-8"
+)
+```
+
+En esta tabla se puede identificar como la mayoría de personas coincide en que los partidos políticos no funcionan bien, lo que puede indicar un desligamiento de la política y su tradicional representación en partidos políticos.
+
+```{r}
+#### Tabla 2
+
+sjt.xtab(proc_data$edad_groups, proc_data$fun_parpol, encoding = "UTF-8")
+#Agregar porcentaje 
+sjt.xtab(proc_data$edad_groups, proc_data$fun_parpol,
+         show.cell.prc = TRUE,  # Mostrar porcentajes en las celdas
+         show.col.prc = TRUE,   # Mostrar porcentajes en las columnas
+         show.summary = FALSE,  # No mostrar resumen
+         encoding = "UTF-8"
+)
+```
+
+La mayor parte de porcentajes es para las opiniones negativas sobre el funcionamiento de los partidos políticos, observando una característica en el grupo de Adulto, siendo quienes más piensan que los partidos políticos en Chile funcionana bien o medianamente bien, mientras que el Adulto Joven parece ser el más pesimista de estos grupos etarios, respecto al funcionamiento de los partidos políticos.
+
+```{r}
+#### Gráfico 1
+
+graph1 <- ggplot(data = proc_data, aes(x = iden_pol, fill = factor(apoy_gm))) +
+  geom_bar(position = "dodge") +
+  labs(x = "Identificación política", y = "Frecuencia", fill = "Apoyar un gobierno militar") +
+  scale_fill_discrete(labels = c("Sí", "No")) +
+  scale_x_continuous(breaks = c(0, 10), labels = c("izquierda", "derecha"))
+
+graph1
+```
+
+Se puede ver como quienes más se identifican políticamente con la izquierda, son quienes menos apoyarian a un gobierno militar, al lado contrario, quienes más se identifican políticamente con la derecha, si apoyarían un gobierno militar. Probablemente esto tenga que ver con la dictadura de 1973 que sufrió Chile, en donde gran parte de quienes ejecutaron este acontecimiento tenian ideologías de derecha.
+
+```{r}
+#### Gráfico 2
+
+graph2 <- ggplot(proc_data, aes(x = factor(demo_parpol))) +
+  geom_bar(fill = "#6a3d9a") + 
+  geom_text(stat = "count", aes(label = ..count..), vjust = -0.5, size = 4, color = "white") +  # Ajustar la posición y el formato del texto
+  labs(title = "La democracia puede funcionar sin partidos políticos",
+       x = "Opinión sobre la democracia con o sin partidos políticos",
+       y = "Frecuencia") +
+  scale_x_discrete(labels = c("No", "Sí")) +  
+  theme_minimal() +  
+  theme(panel.grid.major.y = element_blank(), 
+    panel.grid.minor.y = element_blank(), 
+    axis.line = element_line(color = "black"),  
+    plot.title = element_text(hjust = 0.5),  
+    plot.background = element_rect(fill = "white")  
+)
+graph2
+```
+
+Según este gráfico, una mayoría d epersonas piensa que sin partidos políticos, no puede funcionar la democracia, sin embargo, la diferencia de magnitud contra quienes creen que sin partidos políticos si puede funcionar la democracia no es mucha, lo que puede resultar precupante, ya que podría interpretarse como una crisis de identidad política por parte de la ciudadanía chilena.
+
+# 3. Análisis bivariado
+
+```{r}
+sum(is.na(proc_data))
+
+proc_data$sexo_numeric <- as.numeric(proc_data$sexo)
+
+proc_data <- proc_data %>% select(sexo_numeric, idenpa, iden_pol, fun_parpol, demo_parpol)
+
+colSums(is.na(proc_data))
+
+# Imputar valores 
+proc_data_imputado <- apply(proc_data, 2, function(x) ifelse(is.na(x), median(x, na.rm = TRUE), x))
+
+#Matriz de correlación
+M <- cor(proc_data_imputado)
+
+print(M)
+
+corrplot(M, method = "color")
+
+corrplot.mixed(M)
+```
+
+La correlación más alta en este caso, es entre la variable fun_parpol (funcionamiento de partido políticos) y demo_parpol (Funcionamiento de la democracia con o sin partidos políticos) siendo esta de un 0,12, sin embargo, para terminos generales de este estudio, se considera que existe una relación de asociación, pese a que esta puede considerarse como minima o más bien, débil, lo que puede adelantar que no existe una dependencia entre estas variables.
+
+corrplot.mixed(M)
+
+```{r}
+sjPlot::plot_scatter(proc_data, fun_parpol, sexo_numeric)
+```
+
+```{r}
+proc_data <- proc_data %>% select(sexo_numeric, idenpa, iden_pol, fun_parpol, demo_parpol)
+
+corrplot::corrplot(M,
+  method = "color", 
+  addCoef.col = "#000390", 
+  type = "upper", 
+  tl.col = "black", 
+  na.label = "-")
+```
+
+```{r}
+graf1 <- ggplot(proc_data, aes(x = fun_parpol, y = sexo_numeric)) +
+  geom_point(size = 1) +  
+  geom_smooth(method = "lm", se = FALSE) +  
+  labs(x = "Funcionamiento partidos políticos", y = "sexo")  
+
+graf1
+```
+
+# 4. Parte 4
+
+```{r}
+modelo0 = lm(fun_parpol ~ demo_parpol,
+             data = proc_data)
+
+summary(modelo0)
+
+sjPlot::tab_model(modelo0,
+                  show.ci=FALSE,
+                  encoding = "UFT-8")
+
+sjPlot::plot_model(modelo0,
+                   show.p = T,
+                   show.values = T,
+                   ci.lvl = c(0.95),
+                   title = "modelo0",
+                   vline.color = "blue") 
+
+```
+
+El valor esperado de fun_parpol es 2.69 cuando demo_parpol es 0, por lo tanto por cada unidad que aumente demo_parpol, se espsera que fun_parpol aumente en 0,18. El valor p es menor que 0.001, dando cuenta que esta relación es estadísticamente significativa. Según en R adjusted, solo se puede explicar en un 1,4% de los casos.
